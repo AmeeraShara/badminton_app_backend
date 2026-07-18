@@ -3,36 +3,7 @@ const db = require('../config/db');
 class DashboardModel {
     // Get all dashboard statistics
     static getDashboardCounts(callback) {
-        console.log('📊 Fetching dashboard counts...');
-        
-        const sql = `
-            SELECT
-                -- Students
-                (SELECT COUNT(*) FROM students) AS totalStudents,
-                (SELECT COUNT(*) FROM students WHERE DATE(created_at) = CURDATE()) AS newStudentsToday,
-                
-                -- Age Groups
-                (SELECT COUNT(*) FROM age_groups) AS totalAgeGroups,
-                
-                -- Sessions
-                (SELECT COUNT(*) FROM sessions) AS totalSessions,
-                (SELECT COUNT(*) FROM sessions WHERE DAYOFWEEK(CURDATE()) = DAYOFWEEK(sessions.created_at)) AS upcomingSessions,
-                
-                -- Attendance
-                (SELECT COUNT(*) FROM attendance WHERE DATE(attendance_date) = CURDATE()) AS todayAttendance,
-                (SELECT COUNT(*) FROM attendance WHERE status = 'Present') AS totalPresent,
-                (SELECT COUNT(*) FROM attendance WHERE status = 'Present' AND DATE(attendance_date) = CURDATE()) AS presentToday,
-                (SELECT COUNT(*) FROM attendance WHERE status = 'Absent' AND DATE(attendance_date) = CURDATE()) AS absentToday,
-                
-                -- Payments
-                (SELECT COUNT(*) FROM payments) AS totalPayments,
-                (SELECT SUM(amount) FROM payments) AS totalRevenue,
-                (SELECT SUM(amount) FROM payments WHERE DATE(payment_date) = CURDATE()) AS todayRevenue,
-                
-                -- Management Team
-                (SELECT COUNT(*) FROM management_team) AS totalStaff
-            FROM DUAL
-        `;
+
 
         db.query(sql, (err, results) => {
             if (err) {
@@ -40,7 +11,6 @@ class DashboardModel {
                 return callback(err);
             }
             
-            console.log('✅ Dashboard data fetched:', results);
             
             // Check if results exists and has data
             if (!results || results.length === 0) {

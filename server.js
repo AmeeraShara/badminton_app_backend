@@ -35,16 +35,20 @@ app.use("/api/payments", paymentRoutes);
 const managementTeamRoutes = require("./routes/managementTeamRoutes");
 app.use("/api/management-team", managementTeamRoutes);
 
-// Dashboard - THIS IS THE CRITICAL ONE
+// Dashboard
 const dashboardRoutes = require("./routes/dashboardRoutes");
 app.use("/api/dashboard", dashboardRoutes);
+
 
 // Test route
 app.get("/", (req, res) => {
   res.send("Backend Working");
 });
 
-// ====== SERVER STARTS HERE ======
-app.listen(5000, () => {
-  console.log("Server Running on Port 5000");
+
+// Server Start
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`Server Running on Port ${PORT}`);
 });

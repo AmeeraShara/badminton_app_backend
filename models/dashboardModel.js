@@ -3,7 +3,6 @@ const db = require('../config/db');
 class DashboardModel {
     // Get all dashboard statistics
     static getDashboardCounts(callback) {
-        console.log('📊 Fetching dashboard counts...');
         
         const sql = `
             SELECT

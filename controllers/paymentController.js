@@ -96,7 +96,9 @@ exports.create = (req, res) => {
     
     if (results && results.length > 0) {
       return res.status(409).json({ 
-        error: "Payment already exists for this student and month" 
+        success: false,
+        message: `Payment already exists for this student in ${payment_month}`,
+        error: "Duplicate payment entry"
       });
     }
     
@@ -126,6 +128,7 @@ exports.create = (req, res) => {
         }
         
         res.status(201).json({
+          success: true,
           message: "Payment created successfully",
           payment: data[0]
         });
@@ -154,37 +157,57 @@ exports.update = (req, res) => {
     });
   }
   
-  const paymentData = {
-    ...req.body,
-    remark: remark || null
-  };
-  
-  Payment.updatePayment(id, paymentData, (err, result) => {
+  // Check if payment already exists for this student and month (excluding current payment)
+  Payment.checkPaymentExistsForUpdate(student_id, payment_month, id, (err, results) => {
     if (err) {
-      console.error("Error updating payment:", err);
+      console.error("Error checking payment:", err);
       return res.status(500).json({ 
-        error: "Failed to update payment",
+        error: "Failed to check existing payment",
         details: err.message 
       });
     }
     
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "Payment not found" });
+    if (results && results.length > 0) {
+      return res.status(409).json({ 
+        success: false,
+        message: `Payment already exists for this student in ${payment_month}`,
+        error: "Duplicate payment entry"
+      });
     }
     
-    // Get the updated payment with student details
-    Payment.getPaymentById(id, (err, data) => {
+    const paymentData = {
+      ...req.body,
+      remark: remark || null
+    };
+    
+    Payment.updatePayment(id, paymentData, (err, result) => {
       if (err) {
-        console.error("Error getting updated payment:", err);
+        console.error("Error updating payment:", err);
         return res.status(500).json({ 
-          error: "Payment updated but failed to retrieve details",
+          error: "Failed to update payment",
           details: err.message 
         });
       }
       
-      res.json({
-        message: "Payment updated successfully",
-        payment: data[0]
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error: "Payment not found" });
+      }
+      
+      // Get the updated payment with student details
+      Payment.getPaymentById(id, (err, data) => {
+        if (err) {
+          console.error("Error getting updated payment:", err);
+          return res.status(500).json({ 
+            error: "Payment updated but failed to retrieve details",
+            details: err.message 
+          });
+        }
+        
+        res.json({
+          success: true,
+          message: "Payment updated successfully",
+          payment: data[0]
+        });
       });
     });
   });
@@ -206,6 +229,7 @@ exports.delete = (req, res) => {
     }
     
     res.json({
+      success: true,
       message: "Payment deleted successfully"
     });
   });

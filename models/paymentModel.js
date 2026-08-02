@@ -167,6 +167,16 @@ const checkPaymentExists = (studentId, paymentMonth, callback) => {
   db.query(sql, [studentId, paymentMonth], callback);
 };
 
+// Check if payment exists for student and month (excluding specific payment ID)
+const checkPaymentExistsForUpdate = (studentId, paymentMonth, excludeId, callback) => {
+  const sql = `
+    SELECT id FROM payments 
+    WHERE student_id = ? AND payment_month = ? AND id != ?
+  `;
+
+  db.query(sql, [studentId, paymentMonth, excludeId], callback);
+};
+
 // Get outstanding payments (students who haven't paid for current month)
 const getOutstandingPayments = (currentMonth, callback) => {
   const sql = `
@@ -201,5 +211,6 @@ module.exports = {
   getPaymentStatistics,
   getMonthlySummary,
   checkPaymentExists,
+  checkPaymentExistsForUpdate, // Make sure this is exported
   getOutstandingPayments,
 };

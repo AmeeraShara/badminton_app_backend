@@ -72,8 +72,9 @@ const createPayment = (payment, callback) => {
       student_id,
       payment_month,
       payment_method,
-      amount
-    ) VALUES (?, ?, ?, ?)
+      amount,
+      remark
+    ) VALUES (?, ?, ?, ?, ?)
   `;
 
   db.query(
@@ -83,6 +84,7 @@ const createPayment = (payment, callback) => {
       payment.payment_month,
       payment.payment_method,
       payment.amount,
+      payment.remark || null,
     ],
     callback
   );
@@ -96,7 +98,8 @@ const updatePayment = (id, payment, callback) => {
       student_id = ?,
       payment_month = ?,
       payment_method = ?,
-      amount = ?
+      amount = ?,
+      remark = ?
     WHERE id = ?
   `;
 
@@ -107,6 +110,7 @@ const updatePayment = (id, payment, callback) => {
       payment.payment_month,
       payment.payment_method,
       payment.amount,
+      payment.remark || null,
       id,
     ],
     callback

@@ -67,7 +67,7 @@ exports.getStudentHistory = (req, res) => {
 
 // Create new payment
 exports.create = (req, res) => {
-  const { student_id, payment_month, payment_method, amount } = req.body;
+  const { student_id, payment_month, payment_method, amount, remark } = req.body;
   
   // Validate required fields
   if (!student_id || !payment_month || !payment_method || !amount) {
@@ -100,8 +100,13 @@ exports.create = (req, res) => {
       });
     }
     
-    // Create the payment
-    Payment.createPayment(req.body, (err, result) => {
+    // Create the payment with remark
+    const paymentData = {
+      ...req.body,
+      remark: remark || null
+    };
+    
+    Payment.createPayment(paymentData, (err, result) => {
       if (err) {
         console.error("Error creating payment:", err);
         return res.status(500).json({ 
@@ -132,7 +137,7 @@ exports.create = (req, res) => {
 // Update payment
 exports.update = (req, res) => {
   const { id } = req.params;
-  const { student_id, payment_month, payment_method, amount } = req.body;
+  const { student_id, payment_month, payment_method, amount, remark } = req.body;
   
   // Validate required fields
   if (!student_id || !payment_month || !payment_method || !amount) {
@@ -149,7 +154,12 @@ exports.update = (req, res) => {
     });
   }
   
-  Payment.updatePayment(id, req.body, (err, result) => {
+  const paymentData = {
+    ...req.body,
+    remark: remark || null
+  };
+  
+  Payment.updatePayment(id, paymentData, (err, result) => {
     if (err) {
       console.error("Error updating payment:", err);
       return res.status(500).json({ 

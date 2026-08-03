@@ -1,216 +1,85 @@
-const db = require("../config/db");
-const bcrypt = require('bcrypt');
-const saltRounds = 10;
+// models/managementTeamModel.js
+const db = require('../config/db');
 
-// Validation functions
-const validateEmail = (email) => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-};
-
-const validateMobile = (mobile) => {
-  const cleanMobile = mobile.replace(/\D/g, '');
-  return cleanMobile.length === 10;
-};
-
-const validatePassword = (password) => {
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/;
-  return passwordRegex.test(password);
-};
-
-// Get all
-exports.getAll = (callback) => {
-  const sql = "SELECT id, name, email, mobile, role, created_at FROM management_team ORDER BY id DESC";
-  db.query(sql, callback);
-};
-
-// Get by ID
-exports.getById = (id, callback) => {
-  const sql = "SELECT id, name, email, mobile, role, created_at FROM management_team WHERE id = ?";
-  db.query(sql, [id], callback);
-};
-
-// Check if email exists
-exports.checkEmailExists = (email, excludeId, callback) => {
-  let sql = "SELECT id FROM management_team WHERE email = ?";
-  let params = [email];
-  
-  if (excludeId) {
-    sql += " AND id != ?";
-    params.push(excludeId);
-  }
-  
-  db.query(sql, params, callback);
-};
-
-// INSERT - with password hashing
-exports.insert = (data, callback) => {
-  // Validate all fields
-  if (!data.name || !data.role || !data.email || !data.mobile || !data.password) {
-    return callback(new Error("All fields are required"));
-  }
-
-  if (!validateEmail(data.email)) {
-    return callback(new Error("Invalid email format"));
-  }
-
-  const cleanMobile = data.mobile.replace(/\D/g, '');
-  if (!validateMobile(cleanMobile)) {
-    return callback(new Error("Mobile number must be exactly 10 digits"));
-  }
-
-  if (!validatePassword(data.password)) {
-    return callback(new Error("Password must be at least 8 characters with 1 uppercase, 1 lowercase, and 1 number"));
-  }
-
-  // Check if email exists
-  exports.checkEmailExists(data.email, null, (err, results) => {
-    if (err) return callback(err);
-    if (results && results.length > 0) {
-      return callback(new Error("Email already exists"));
-    }
-
-    // Hash the password
-    bcrypt.hash(data.password, saltRounds, (err, hash) => {
-      if (err) return callback(err);
-
-      const sql = `
-        INSERT INTO management_team (name, role, email, mobile, password)
-        VALUES (?, ?, ?, ?, ?)
-      `;
-
-      const values = [
-        data.name.trim(),
-        data.role,
-        data.email.toLowerCase().trim(),
-        cleanMobile,
-        hash
-      ];
-
-      db.query(sql, values, callback);
+const Team = {
+  getAll: (callback) => {
+    const query = 'SELECT id, name, mobile, email, role, created_at FROM team_members ORDER BY created_at DESC';
+    console.log('Executing getAll query');
+    db.query(query, (err, results) => {
+      if (err) {
+        console.error('GetAll Error:', err);
+      } else {
+        console.log(`GetAll returned ${results.length} records`);
+      }
+      callback(err, results);
     });
-  });
-};
+  },
 
-// UPDATE - FIXED VERSION WITH PROPER PASSWORD HASHING
-exports.update = (id, data, callback) => {
-  console.log('=== UPDATE CALLED ===');
-  console.log('ID:', id);
-  console.log('Data received:', JSON.stringify(data, null, 2));
-  
-  // Validate required fields
-  if (!data.name || !data.role || !data.mobile) {
-    return callback(new Error("Name, role, and mobile are required"));
-  }
-
-  const cleanMobile = data.mobile.replace(/\D/g, '');
-  if (!validateMobile(cleanMobile)) {
-    return callback(new Error("Mobile number must be exactly 10 digits"));
-  }
-
-  // First, check if email needs validation
-  const validateEmailIfProvided = (next) => {
-    if (data.email) {
-      if (!validateEmail(data.email)) {
-        return callback(new Error("Invalid email format"));
+  getById: (id, callback) => {
+    const query = 'SELECT id, name, mobile, email, role FROM team_members WHERE id = ?';
+    console.log(`Executing getById for ID: ${id}`);
+    db.query(query, [id], (err, results) => {
+      if (err) {
+        console.error('GetById Error:', err);
+      } else {
+        console.log(`GetById returned ${results.length} records`);
       }
-      
-      exports.checkEmailExists(data.email, id, (err, results) => {
-        if (err) return callback(err);
-        if (results && results.length > 0) {
-          return callback(new Error("Email already exists"));
-        }
-        next();
-      });
-    } else {
-      next();
-    }
-  };
+      callback(err, results);
+    });
+  },
 
-  // Validate email first
-  validateEmailIfProvided(() => {
-    // Check if password is provided and not empty
-    if (data.password && data.password.trim() !== "") {
-      console.log('Password provided, will hash it');
-      
-      // Validate password strength
-      if (!validatePassword(data.password)) {
-        return callback(new Error("Password must be at least 8 characters with 1 uppercase, 1 lowercase, and 1 number"));
-      }
-
-      // HASH THE PASSWORD
-      bcrypt.hash(data.password, saltRounds, (err, hashedPassword) => {
+  create: (data, callback) => {
+    const query = 'INSERT INTO team_members (name, mobile, email, password, role) VALUES (?, ?, ?, ?, ?)';
+    console.log('Executing create with data:', { ...data, password: '***' });
+    db.query(
+      query,
+      [data.name, data.mobile, data.email, data.password, data.role],
+      (err, result) => {
         if (err) {
-          console.error('Hashing error:', err);
-          return callback(err);
+          console.error('Create Error:', err);
+        } else {
+          console.log('Create successful, insertId:', result.insertId);
         }
+        callback(err, result);
+      }
+    );
+  },
 
-        console.log('Password hashed successfully');
-        console.log('Hash:', hashedPassword);
-
-        // UPDATE WITH HASHED PASSWORD
-        let sql = `
-          UPDATE management_team 
-          SET 
-            name = ?,
-            role = ?,
-            mobile = ?,
-            email = ?,
-            password = ?
-          WHERE id = ?
-        `;
-
-        let values = [
-          data.name.trim(),
-          data.role,
-          cleanMobile,
-          data.email ? data.email.toLowerCase().trim() : null,
-          hashedPassword, // THIS IS THE HASHED PASSWORD
-          id
-        ];
-
-        console.log('SQL:', sql);
-        console.log('Values:', values);
-        console.log('Password being stored (hashed):', hashedPassword);
-
-        db.query(sql, values, (err, result) => {
-          if (err) {
-            console.error('Database error:', err);
-            return callback(err);
-          }
-          console.log('Update successful');
-          callback(null, result);
-        });
-      });
-    } else {
-      // No password update - update without password
-      console.log('No password provided, skipping password update');
-      
-      let sql = `
-        UPDATE management_team 
-        SET 
-          name = ?,
-          role = ?,
-          mobile = ?,
-          email = ?
-        WHERE id = ?
-      `;
-
-      let values = [
-        data.name.trim(),
-        data.role,
-        cleanMobile,
-        data.email ? data.email.toLowerCase().trim() : null,
-        id
-      ];
-
-      db.query(sql, values, callback);
+  update: (id, data, callback) => {
+    let query = 'UPDATE team_members SET name = ?, mobile = ?, email = ?, role = ?';
+    const params = [data.name, data.mobile, data.email, data.role];
+    
+    if (data.password) {
+      query += ', password = ?';
+      params.push(data.password);
     }
-  });
+    
+    query += ' WHERE id = ?';
+    params.push(id);
+    
+    console.log(`Executing update for ID: ${id}`);
+    db.query(query, params, (err, result) => {
+      if (err) {
+        console.error('Update Error:', err);
+      } else {
+        console.log(`Update affected ${result.affectedRows} rows`);
+      }
+      callback(err, result);
+    });
+  },
+
+  remove: (id, callback) => {
+    const query = 'DELETE FROM team_members WHERE id = ?';
+    console.log(`Executing remove for ID: ${id}`);
+    db.query(query, [id], (err, result) => {
+      if (err) {
+        console.error('Remove Error:', err);
+      } else {
+        console.log(`Remove affected ${result.affectedRows} rows`);
+      }
+      callback(err, result);
+    });
+  }
 };
 
-// DELETE
-exports.delete = (id, callback) => {
-  const sql = "DELETE FROM management_team WHERE id = ?";
-  db.query(sql, [id], callback);
-};
+module.exports = Team;

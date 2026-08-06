@@ -1,249 +1,186 @@
-// controllers/managementTeamController.js
 const Team = require("../models/managementTeamModel");
-const bcrypt = require('bcrypt');
 
-const SALT_ROUNDS = 10;
-
-// Get all members
-exports.getMembers = (req, res) => {
-  console.log('=== GET ALL MEMBERS REQUEST ===');
+// GET all
+exports.getAll = (req, res) => {
   Team.getAll((err, results) => {
     if (err) {
-      console.error('Get all error:', err);
-      return res.status(500).json({ 
-        success: false, 
-        message: "Database Error",
-        error: err.message 
+      return res.status(500).json({
+        success: false,
+        message: err.message,
       });
     }
-    console.log(`Sending ${results.length} members`);
     res.json(results);
   });
 };
 
-// Get single member
-exports.getMember = (req, res) => {
+// GET by ID
+exports.getById = (req, res) => {
   const id = req.params.id;
-  console.log(`=== GET MEMBER REQUEST: ID ${id} ===`);
-  
+
   Team.getById(id, (err, results) => {
     if (err) {
-      console.error('Get by id error:', err);
-      return res.status(500).json({ 
-        success: false, 
-        message: "Database Error",
-        error: err.message 
+      return res.status(500).json({
+        success: false,
+        message: err.message,
       });
     }
+
     if (results.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "Member not found",
+        message: "Team member not found",
       });
     }
+
     res.json(results[0]);
   });
 };
 
-// Create member
-exports.createMember = async (req, res) => {
-  console.log('=== CREATE MEMBER REQUEST ===');
-  try {
-    const data = req.body;
-    console.log('Create member request body:', { ...data, password: data.password ? '***' : 'not provided' });
-    
-    if (!data.name || !data.role || !data.email || !data.mobile || !data.password) {
-      return res.status(400).json({
-        success: false,
-        message: "All fields are required",
-      });
-    }
+// POST - Create
+exports.create = (req, res) => {
+  const data = req.body;
 
-    // Check if email already exists
-    const checkEmailQuery = 'SELECT id FROM team_members WHERE email = ?';
-    db.query(checkEmailQuery, [data.email], async (err, results) => {
-      if (err) {
-        console.error('Email check error:', err);
-        return res.status(500).json({
-          success: false,
-          message: "Database Error",
-          error: err.message
-        });
-      }
-      
-      if (results.length > 0) {
+  Team.insert(data, (err, result) => {
+    if (err) {
+      // Handle specific errors
+      if (err.message === "Email already exists") {
         return res.status(400).json({
           success: false,
-          message: "Email already exists"
+          message: err.message,
         });
       }
 
-      // Hash the password
-      const hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS);
-      data.password = hashedPassword;
-
-      Team.create(data, (err, result) => {
-        if (err) {
-          console.error('Create error:', err);
-          return res.status(500).json({
-            success: false,
-            message: "Database Error",
-            error: err.message
-          });
-        }
-        res.json({
-          success: true,
-          message: "Team member added successfully",
-          insertId: result.insertId,
+      if (err.message === "Invalid email format") {
+        return res.status(400).json({
+          success: false,
+          message: err.message,
         });
-      });
-    });
-  } catch (error) {
-    console.error('Error in createMember:', error);
-    res.status(500).json({
-      success: false,
-      message: "Server Error",
-      error: error.message
-    });
-  }
-};
+      }
 
-// Update member
-exports.updateMember = async (req, res) => {
-  console.log('=== UPDATE MEMBER REQUEST ===');
-  try {
-    const id = req.params.id;
-    const data = req.body;
-    
-    console.log('Update member request:');
-    console.log('ID:', id);
-    console.log('Data:', { ...data, password: data.password ? '***' : 'not provided' });
+      if (err.message === "Mobile number must be exactly 10 digits") {
+        return res.status(400).json({
+          success: false,
+          message: err.message,
+        });
+      }
 
-    if (!data.name || !data.role || !data.email || !data.mobile) {
-      return res.status(400).json({
+      if (err.message.includes("Password must be at least")) {
+        return res.status(400).json({
+          success: false,
+          message: err.message,
+        });
+      }
+
+      console.error("Database error:", err);
+      return res.status(500).json({
         success: false,
-        message: "Name, Role, Email, and Mobile are required",
+        message: "Failed to add team member. Please try again.",
       });
     }
 
-    Team.getById(id, async (err, results) => {
-      if (err) {
-        console.error('Get by id error:', err);
-        return res.status(500).json({
-          success: false,
-          message: "Database Error",
-          error: err.message
-        });
-      }
-      if (results.length === 0) {
-        return res.status(404).json({
-          success: false,
-          message: "Member not found"
-        });
-      }
-
-      // If password is provided, hash it
-      if (data.password && data.password.trim() !== '') {
-        const hashedPassword = await bcrypt.hash(data.password, SALT_ROUNDS);
-        data.password = hashedPassword;
-      } else {
-        delete data.password;
-      }
-
-      Team.update(id, data, (err, result) => {
-        if (err) {
-          console.error('Update error:', err);
-          return res.status(500).json({
-            success: false,
-            message: "Database Error",
-            error: err.message
-          });
-        }
-        
-        if (result.affectedRows === 0) {
-          return res.status(404).json({
-            success: false,
-            message: "Member not found or no changes made"
-          });
-        }
-        
-        console.log('Update successful');
-        res.json({
-          success: true,
-          message: "Team member updated successfully",
-        });
-      });
+    res.status(201).json({
+      success: true,
+      message: "Team member added successfully",
+      data: { id: result.insertId },
     });
-  } catch (error) {
-    console.error('Error in updateMember:', error);
-    res.status(500).json({
-      success: false,
-      message: "Server Error",
-      error: error.message
-    });
-  }
+  });
 };
 
-// Delete member
-exports.deleteMember = (req, res) => {
-  console.log('=== DELETE MEMBER REQUEST ===');
+// PUT - Update
+exports.update = (req, res) => {
   const id = req.params.id;
-  console.log('Member ID to delete:', id);
-  
-  // Validate ID
-  if (!id) {
-    console.error('No ID provided for deletion');
-    return res.status(400).json({
-      success: false,
-      message: "Member ID is required"
+
+  // First check if member exists
+  Team.getById(id, (err, results) => {
+    if (err) {
+      return res.status(500).json({
+        success: false,
+        message: err.message,
+      });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Team member not found",
+      });
+    }
+
+    // Update the member
+    Team.update(id, req.body, (err, result) => {
+      if (err) {
+        if (err.message === "Email already exists") {
+          return res.status(400).json({
+            success: false,
+            message: err.message,
+          });
+        }
+
+        if (err.message === "Invalid email format") {
+          return res.status(400).json({
+            success: false,
+            message: err.message,
+          });
+        }
+
+        if (err.message === "Mobile number must be exactly 10 digits") {
+          return res.status(400).json({
+            success: false,
+            message: err.message,
+          });
+        }
+
+        if (err.message.includes("Password must be at least")) {
+          return res.status(400).json({
+            success: false,
+            message: err.message,
+          });
+        }
+
+        console.error("Database error:", err);
+        return res.status(500).json({
+          success: false,
+          message: "Failed to update team member. Please try again.",
+        });
+      }
+
+      res.json({
+        success: true,
+        message: "Team member updated successfully",
+      });
     });
-  }
+  });
+};
+
+// DELETE
+exports.delete = (req, res) => {
+  const id = req.params.id;
 
   // Check if member exists
   Team.getById(id, (err, results) => {
     if (err) {
-      console.error('Get by id error:', err);
       return res.status(500).json({
         success: false,
-        message: "Database Error",
-        error: err.message
+        message: err.message,
       });
     }
-    
-    console.log(`GetById returned ${results.length} records`);
-    
+
     if (results.length === 0) {
-      console.log(`Member with ID ${id} not found`);
       return res.status(404).json({
         success: false,
-        message: "Member not found"
+        message: "Team member not found",
       });
     }
 
-    console.log('Member found:', results[0]);
-
-    // Delete the member
-    Team.remove(id, (err, result) => {
+    Team.delete(id, (err) => {
       if (err) {
-        console.error('Delete error:', err);
+        console.error("Database error:", err);
         return res.status(500).json({
           success: false,
-          message: "Database Error",
-          error: err.message
+          message: "Failed to delete team member. Please try again.",
         });
       }
-      
-      console.log('Delete result:', result);
-      console.log(`Delete affected ${result.affectedRows} rows`);
-      
-      if (result.affectedRows === 0) {
-        return res.status(404).json({
-          success: false,
-          message: "Member not found or already deleted"
-        });
-      }
-      
-      console.log(`Delete successful for ID: ${id}`);
+
       res.json({
         success: true,
         message: "Team member deleted successfully",
